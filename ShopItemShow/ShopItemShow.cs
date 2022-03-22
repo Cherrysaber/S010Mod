@@ -1,4 +1,5 @@
-﻿using System.Collections.Generic;
+﻿using System;
+using System.Collections.Generic;
 using UnityEngine;
 using UnityEngine.UI;
 using BepInEx;
@@ -85,8 +86,8 @@ namespace ShopItemShow
                 // 门派,显示前4项
                 for (int i = 0; i < 4; i++)
                 {
-                    var item = shop[card.no].goods[i].item;
-                    string text = $"{ItemDict.GetItemName(item)}  威望 {shop[card.no].goods[i].prestige}";
+                    var good = shop[card.no].goods[i];
+                    string text = $"{ItemDict.GetItemName(good.item)}  威望 {good.prestige}";
                     info.text += text;
                     info.text += "\n";
                 }
@@ -123,7 +124,8 @@ namespace ShopItemShow
                 }
                 if (shop[card.no].goods[i].mana > 0)
                 {
-                    if (n==1){
+                    if (n == 1)
+                    {
                         text += "\n";
                     }
                     text += "灵气 " + good.mana.ToString();
@@ -149,7 +151,7 @@ namespace ShopItemShow
 
         // X,Y 存储 MouseOver 时卡牌的 X,Y
         public static int CardX;
-        private static int CardY;
+        public static int CardY;
         [HarmonyPatch(typeof(MapSprite), nameof(MapSprite.OnMouseOver))]
         [HarmonyPrefix]
         public static void PatchOnMouseOver(MapSprite __instance)
@@ -161,6 +163,43 @@ namespace ShopItemShow
             string[] array = __instance.name.Split(new char[] { '_' });
             ShopItemShow.CardX = int.Parse(array[0]);
             ShopItemShow.CardY = int.Parse(array[1]);
+        }
+
+        // bugfix: 修复多人游戏洞府仙山可以无限升级和自动升级的bug
+        // 玩家升级仙山或者洞府后,设置 this.upgrade
+        // 但是在升完级后却没有重置 this.upgrade
+        // 导致地图上建造建筑物或者升级时
+        // 游戏都会遍历全部建筑调用 Upgrade
+
+        // 仙山,升级后重置 this.upgrade
+        [HarmonyPatch(typeof(ServerBuildingMountain), nameof(ServerBuildingMountain.Upgrade))]
+        [HarmonyPostfix]
+        public static void PatchMountainUpgrade(ServerBuildingMountain __instance)
+        {
+            if (__instance.upgrade != "")
+            {
+                Log.LogInfo("PatchMountainUpgrade: reset this.upgrade");
+                __instance.upgrade = "";
+                if(__instance.level == 2) {
+                    __instance.goods[3].count = 0;
+                }
+            }
+            
+        }
+
+        // 洞府,升级后重置 this.upgrade
+        [HarmonyPatch(typeof(ServerBuildingCave), nameof(ServerBuildingCave.Upgrade))]
+        [HarmonyPostfix]
+        public static void PatchCaveUpgrade(ServerBuildingCave __instance)
+        {
+            if (__instance.upgrade != "")
+            {
+                Log.LogInfo("PatchCaveUpgrade: reset this.upgrade");
+                __instance.upgrade = "";
+                if(__instance.level == 2) {
+                    __instance.goods[3].count = 0;
+                }
+            }
         }
     }
 
@@ -266,6 +305,7 @@ namespace ShopItemShow
         private static ItemDict instance; // instance
 
         private static Dictionary<string, ItemData> dict;
+        public static ItemData[] Items;
         public static ItemDict GetInstance()
         {
             if (instance == null)
@@ -278,7 +318,7 @@ namespace ShopItemShow
         private static void init()
         {
             // 初始化数据
-            var items = ItemManager.GetInstance().items;
+            Items = ItemManager.GetInstance().items;
             dict = new Dictionary<string, ItemData>();
 
             // 修复游戏数据错误
@@ -287,7 +327,7 @@ namespace ShopItemShow
             // 游戏原始items.name 都为 蚀心掌
             // 游戏里刀字不知道用什么字体,或者就不是这个刀
             // 全部改成刀,方便制作查找功能
-            foreach (var itemData in items)
+            foreach (var itemData in Items)
             {
                 switch (itemData.id)
                 {
