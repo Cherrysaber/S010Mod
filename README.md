@@ -14,5 +14,6 @@ dotnet new bepinex5plugin -n NewPlugin -T net46 -U 2018.4.23
 
 ## ShopItemShow (商店物品展示)
 
-
+![image](https://github.com/Cherrysaber/S010Mod/blob/main/image/house.png)
+![image](https://github.com/Cherrysaber/S010Mod/blob/main/image/root.png)
 
