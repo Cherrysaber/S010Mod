@@ -20,3 +20,6 @@ dotnet new bepinex5plugin -n NewPlugin -T net46 -U 2018.4.23
 
 ### v0.3.0
 bugfix: 修复多人游戏仙山洞府可以无限升级和自动升级
+
+### v0.3.5
+bugfix: 多人游戏非主机玩家无法正常显示 #1
