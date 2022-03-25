@@ -241,7 +241,9 @@ namespace ShopItemShow
                         break;
                     }
                     string text = __instance.joinShop.card.posx.ToString() + "_" + __instance.joinShop.card.posy.ToString();
-                    __instance.SendMessage(ShopMaster.ResetCard,new string[] { text });
+                    foreach (var player in ServerMaster.GetInstance().gamedata.players){
+                        player.SendMessage(ShopMaster.ResetCard,new string[] { text });
+                    }
                     return true;       
             }
             return true;
