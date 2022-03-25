@@ -1,11 +1,18 @@
-﻿using System;
-using System.Collections.Generic;
+﻿using System.Collections.Generic;
 using UnityEngine;
-using UnityEngine.UI;
 using BepInEx;
 using BepInEx.Logging;
 using HarmonyLib;
 
+// 20220323 edit by Cherrysaber
+// bugfix: 多人游戏非主机无法正常显示 (https://github.com/Cherrysaber/S010Mod/issues/1)
+// 游戏数据初始化仅在主机进行,非主机获取 gamedata.shop 会直接出错
+// solution: ShopMaster 管理 shop 数据
+// 主机直接获取 ShopMaster.shop = gamedata.shop
+// 非主机通过 ShopMaster 管理 shop
+// 注入 ClientMaster.ActionManage 
+// 获取数据设置ShopMaster.shop,并监控其他玩家数据变化,更新商店时钟
+// 注入 ServerPlayer.RecvControll,发送商店数据
 
 namespace ShopItemShow
 {
@@ -23,6 +30,8 @@ namespace ShopItemShow
             // 实例化 ShopUtility,ItemDict
             ShopUtility.GetInstance();
             ItemDict.GetInstance();
+            // bugfix: 初始化ShopMaster,避免null错误
+            ShopMaster.Reset();
 
             // 注入 SelectCard 修改提示
             // 提示内容位于 this.information.text
@@ -61,23 +70,34 @@ namespace ShopItemShow
             var info = __instance.information;
             info.text = "";
             info.text = Localization.Get("name_shop_" + name) + "\n" + Localization.Get("info_shop_" + name) + "\n";
+
+            // MapCard.name = X_Y
+            // X,Y 为 Card 在地图的坐标
+            string[] array = MapCard.name.Split(new char[] { '_' });
+            int x = int.Parse(array[0]);
+            int y = int.Parse(array[1]);
             // 调用 MapController.GetTableCard 获取 card
-            var card = ClientMaster.GetInstance().mapController.GetTableCard(new Vector2Int(ShopItemShow.CardX, ShopItemShow.CardY));
+            var card = ClientMaster.GetInstance().mapController.GetTableCard(new Vector2Int(x, y));
             if (card == null)
             {
                 // 没有找到card,就算返回执行原函数,他也找不到
                 // 设置下 __instance.size 显示原始信息并记录错误
-                Log.LogError($"not found card in {ShopItemShow.CardX},{ShopItemShow.CardY}");
+                Log.LogError($"not found card in {x},{y}");
                 __instance.size = new Vector2(296f, 200f);
                 return false;
             }
             // 获取gamedata.shop
-            Dictionary<int, ServerBuilding> shop = ServerMaster.GetInstance().gamedata.shop;
+            Dictionary<int, ServerBuilding> shop = ShopMaster.GetShop();
+
             if (!shop.ContainsKey(card.no))
             {
                 // 找不到对应商店,返回执行原函数
                 // 原函数会重新设置 __instance.size,不用设置
-                Log.LogError($"{card.no} not found in gamedata.shop");
+                // 如果是主机就记录错误
+                if (ClientMaster.GetInstance().me.no == 0)
+                {
+                    Log.LogError($"{card.no} not found in gamedata.shop");
+                }
                 return true;
             }
 
@@ -149,21 +169,91 @@ namespace ShopItemShow
             return false;
         }
 
-        // X,Y 存储 MouseOver 时卡牌的 X,Y
-        public static int CardX;
-        public static int CardY;
+        // MapCard 存储 OnMouseOver 时的实例
+        // MapCard.name = X_Y
+        // X,Y 为 Card 在地图的坐标
+        public static MapSprite MapCard;
+
         [HarmonyPatch(typeof(MapSprite), nameof(MapSprite.OnMouseOver))]
         [HarmonyPrefix]
         public static void PatchOnMouseOver(MapSprite __instance)
         {
-            // 鼠标移动到 card 上存储坐标
-            // MapSprite.name = X_Y
-            // X,Y 就是 card 的坐标
-            // 利用坐标可以从 gamedata.shop 获取对应的建筑
-            string[] array = __instance.name.Split(new char[] { '_' });
-            ShopItemShow.CardX = int.Parse(array[0]);
-            ShopItemShow.CardY = int.Parse(array[1]);
+            MapCard = __instance;
         }
+
+
+        // 注入ClientMaster.ActionManage
+        // StartGame 开始游戏,重置ShopMaster
+        // ChangeCreature 有人数据变动,可能购买了商品,重置所有商店时钟
+        // ShopMaster.RecvGoods 为我们接收到的商店数据
+        // ShopMaster.SetShop 设置商店物品
+        [HarmonyPatch(typeof(ClientMaster), "ActionManage")]
+        [HarmonyPrefix]
+        public static bool PatchActionManage(ClientMaster __instance, Action action)
+        {
+            ShopItemShow.Log.LogInfo($"action: {action.type}");
+            switch (action.type)
+            {
+                case Action.Type.StartGame:
+                    // new game
+                    ShopItemShow.Log.LogInfo("ShopMaster Reset");
+                    ShopMaster.Reset();
+                    return true;
+                case ShopMaster.RecvGoods:
+                    // 拦截
+                    break;
+                case Action.Type.ChangeCreature:
+                    // 有人数据改变,可能购买了商品,重置商店时钟 O(2n)
+                    // 下个小版本改为特定时钟重置 todo
+                    ShopMaster.ResetAllClock();
+                    return true;
+                default:
+                    return true;
+            }
+
+            string[] array = action.parameter.Split(new char[] { ',' });
+            ShopItemShow.Log.LogInfo($"get message: {action.parameter}");
+            ShopMaster.SetShop(array);
+            // ShopMaster.ResetPlayerState();
+            return false;
+        }
+
+
+        // 注入 ServerPlayer.RecvControll
+        // ShopMaster.GetGoods 我们发送的请求数据
+        [HarmonyPatch(typeof(ServerPlayer), nameof(ServerPlayer.RecvControll))]
+        [HarmonyPrefix]
+        public static bool PathchRecvControll(ServerPlayer __instance, ref Controll controll)
+        {
+            ShopItemShow.Log.LogInfo(string.Concat(new string[] { "玩家", __instance.no.ToString(),"操作:", controll.type.ToString(), "-", controll.parameter }));
+            ShopItemShow.Log.LogInfo($"Controll.type {controll.type}");
+            if (controll.type != ShopMaster.GetGoods)
+            {   // 不是我们请求的数据
+                return true;
+            }
+
+            // 发送商店货物信息
+            string[] array = controll.parameter.Split(new char[] { '_' });
+            int x = int.Parse(array[0]);
+            int y = int.Parse(array[1]);
+            var card = ClientMaster.GetInstance().mapController.GetTableCard(new Vector2Int(x, y));
+            if (card == null)
+            {
+                return false;
+            }
+            var shop = ServerMaster.GetInstance().gamedata.shop;
+            if (!shop.ContainsKey(card.no))
+            {
+                ShopItemShow.Log.LogError($"{x},{y} not found in gamedata.shop");
+                return false;
+            }
+            ShopMaster.SendGoods(__instance, shop[card.no]);
+            return false;
+
+        }
+
+
+
 
         // bugfix: 修复多人游戏洞府仙山可以无限升级和自动升级的bug
         // 玩家升级仙山或者洞府后,设置 this.upgrade
@@ -180,11 +270,12 @@ namespace ShopItemShow
             {
                 Log.LogInfo("PatchMountainUpgrade: reset this.upgrade");
                 __instance.upgrade = "";
-                if(__instance.level == 2) {
+                if (__instance.level == 2)
+                {
                     __instance.goods[3].count = 0;
                 }
             }
-            
+
         }
 
         // 洞府,升级后重置 this.upgrade
@@ -196,13 +287,200 @@ namespace ShopItemShow
             {
                 Log.LogInfo("PatchCaveUpgrade: reset this.upgrade");
                 __instance.upgrade = "";
-                if(__instance.level == 2) {
+                if (__instance.level == 2)
+                {
                     __instance.goods[3].count = 0;
                 }
             }
         }
     }
 
+
+    public class ShopMaster
+    {
+        // Shop Master 用来管理 shop 数据保证主机和非主机都能正常显示商店物品
+        // Reset  重置ShopMaster
+        // GetShop 获取shop
+        // GetTime 获取当前回合数
+        // SetShop 设置商店数据
+        // ResetClock 重置商店时钟,用来判断数据是否需要重新获取
+        // ResetPlayerState 重置玩家状态,在获取数据后把 shop状态 转化为 selectPos状态
+
+        // 非主机玩家使用的 shop, 保存了从主机获取的商店信息
+        private static Dictionary<int, ServerBuilding> shop;
+
+        // 每个建筑对应一个时钟,时钟记录shop数据是否需要更新
+        // 新回合开始或者有玩家进行购物都会导致shop数据更新
+        private static Dictionary<string, int> clock;
+        public static bool Task = false;// 请求任务,有任务时,不在发送请求数据
+        public static MapSprite TaskCard;// 记录发送请求是的 Card
+
+        // 我们请求head 从200开始设置避免冲突
+        // 就是游戏更新多了几个 Controll.Type , 也不会冲突
+        public const Action.Type RecvGoods = (Action.Type)200;
+        public const Controll.Type GetGoods = (Controll.Type)200;
+
+        public static void Reset()
+        {   // new game reset all
+            shop = new Dictionary<int, ServerBuilding>();
+            clock = new Dictionary<string, int>();
+            Task = false;
+        }
+        public static Dictionary<int, ServerBuilding> GetShop()
+        {
+            if (ClientMaster.GetInstance().me.no == 0)
+            {   // 主机,使用gamedata.shop
+                return ServerMaster.GetInstance().gamedata.shop;
+            }
+            if (Task)
+            {
+                // 有发送请求数据任务,直接返回,不再进行之后的逻辑判断,防止竞争
+                return shop;
+            }
+
+            if (clock.ContainsKey(ShopItemShow.MapCard.name) && GetTime() == clock[ShopItemShow.MapCard.name])
+            {
+                // 数据没有变化
+                return shop;
+            }
+            ShopItemShow.Log.LogInfo("send get data message");
+            // 获取数据
+            Task = true;
+            TaskCard = ShopItemShow.MapCard;
+            ClientMaster.GetInstance().SendMessage(GetGoods, new string[] { ShopItemShow.MapCard.name });
+            return shop;
+        }
+
+        public static int GetTime()
+        {
+            // 获取回合数, ClockController.time 为 private
+            // 改为获取 (GetDay() - 1) * 12 + TimeConve()
+            var day = ClockController.GetInstance().GetDay();
+            var conve = ClockController.GetInstance().TimeConve();
+            return (day - 1) * 12 + conve;
+        }
+
+        public static void SetShop(string[] str)
+        {
+            // TaskCard.name = X_Y
+            // X,Y 为 Card 在地图的坐标
+            string[] array = TaskCard.name.Split(new char[] { '_' });
+            int x = int.Parse(array[0]);
+            int y = int.Parse(array[1]);
+            var card = ClientMaster.GetInstance().mapController.GetTableCard(new Vector2Int(x, y));
+            if (card == null)
+            {
+                // card 不存在
+                ShopItemShow.Log.LogError($"ShopMaster: not found card in {x},{y}");
+                Task = false;
+                return;
+            }
+
+            ServerBuilding building;
+            // shopId = str[0]
+            // population = str[1] // 四周格子的人口
+            if (!shop.ContainsKey(card.no))
+            {
+                // 新建ServerBuilding
+                building = new ServerBuilding();
+                for (int i = 0; i < 8; i++)
+                {
+                    building.goods.Add(new Goods("NONE", 0, 0, 0));
+                }
+                shop.Add(card.no, building);
+            }
+            if (!clock.ContainsKey(ShopItemShow.MapCard.name))
+            {
+                clock.Add(ShopItemShow.MapCard.name, 0);
+            }
+            clock[ShopItemShow.MapCard.name] = GetTime();
+            building = shop[card.no];
+            // item.id = str[3]
+            // count = str[4]
+            // prestige = str[5]
+            // mana = str[6]
+            // population = str[7] // 升级所需人口
+            building.name = str[0];
+            var index = 0;
+            for (int i = 3; i < str.Length; i += 5)
+            {
+                building.goods[index].item = ItemDict.GetItem(str[i]);
+                building.goods[index].count = int.Parse(str[i + 1]);
+                building.goods[index].prestige = int.Parse(str[i + 2]);
+                building.goods[index].mana = int.Parse(str[i + 3]);
+                building.goods[index].population = int.Parse(str[i + 4]);
+                index++;
+            }
+            Task = false;
+        }
+
+        public static void ResetClock(string name)
+        {
+            // 重置对应商店的clock
+            if (!clock.ContainsKey(name))
+            {
+                return;
+            }
+            ShopItemShow.Log.LogInfo($"reset {name} clock");
+            clock[name] = -1;
+        }
+
+        public static void ResetAllClock()
+        {
+            var keys = new List<string>();
+            foreach (var name in clock.Keys){
+                keys.Add(name);
+            }
+            foreach (var name in keys){
+                ResetClock(name);
+            }
+        }
+
+        public static void ResetPlayerState()
+        {
+            // 重置状态
+            var player = ServerMaster.GetInstance().gamedata.players[ClientMaster.GetInstance().me.no];
+            ShopItemShow.Log.LogInfo($"stop player: {player.no} action");
+            ShopItemShow.Log.LogInfo($"shop {player.joinShop}");
+            player.joinShop.players.Remove(player);
+            player.lootTemp = null;
+            player.SendMessage(Action.Type.EndShop, new string[] { "" });
+            player.SendMessage(Action.Type.ReturnToNormal, new string[] { "" });
+            ServerMaster.SendMessage(Action.Type.PlayerGo, new string[] { player.no.ToString(), player.pos.x.ToString() + "_" + player.pos.y.ToString() });
+            foreach (ServerPlayer serverPlayer in player.joinShop.players)
+            {
+                player.joinShop.SendMessage(global::Action.Type.ShopCustom, new string[] { player.no.ToString(), "false" });
+            }
+            player.joinShop = null;
+            player.SetPlayerState(PlayerState.SelectPos);
+        }
+
+        public static void SendGoods(ServerPlayer player, ServerBuilding building)
+        {
+            string text = "";
+            text += building.name;
+            text += ",";
+            text += ServerMaster.GetInstance().gamedata.GetPopulation(building.card.posx, building.card.posy);
+            text += ",";
+            text += building.goods.Count;
+            foreach (Goods goods in building.goods)
+            {
+                text += ",";
+                text += goods.item.id;
+                text += ",";
+                text += goods.GetCount(player.no);
+                text += ",";
+                text += goods.GetPrestige(player.no);
+                text += ",";
+                text += goods.GetMana(player.no);
+                text += ",";
+                text += goods.GetPopulation(player.no);
+            }
+            player.SendMessage(RecvGoods, new string[] { text });
+        }
+
+
+    }
     public class ShopUtility
     {
         // Shop Utility
