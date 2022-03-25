@@ -382,11 +382,7 @@ namespace ShopItemShow
                 }
                 shop.Add(card.no, building);
             }
-            if (!clock.ContainsKey(TaskCard.name))
-            {
-                clock.Add(TaskCard.name, 0);
-            }
-            clock[TaskCard.name] = GetTime();
+
             building = shop[card.no];
             // shopId = str[0]
             // population = str[1] // 四周格子的人口            
