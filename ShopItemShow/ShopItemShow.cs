@@ -191,7 +191,7 @@ namespace ShopItemShow
         [HarmonyPrefix]
         public static bool PatchActionManage(ClientMaster __instance, Action action)
         {
-            ShopItemShow.Log.LogInfo($"action: {action.type}");
+            // ShopItemShow.Log.LogInfo($"action: {action.type}");
             switch (action.type)
             {
                 case Action.Type.StartGame:
@@ -212,7 +212,7 @@ namespace ShopItemShow
             }
 
             string[] array = action.parameter.Split(new char[] { ',' });
-            ShopItemShow.Log.LogInfo($"get message: {action.parameter}");
+            // ShopItemShow.Log.LogInfo($"get message: {action.parameter}");
             ShopMaster.SetShop(array);
             // ShopMaster.ResetPlayerState();
             return false;
@@ -225,8 +225,8 @@ namespace ShopItemShow
         [HarmonyPrefix]
         public static bool PathchRecvControll(ServerPlayer __instance, ref Controll controll)
         {
-            ShopItemShow.Log.LogInfo(string.Concat(new string[] { "玩家", __instance.no.ToString(),"操作:", controll.type.ToString(), "-", controll.parameter }));
-            ShopItemShow.Log.LogInfo($"Controll.type {controll.type}");
+            // ShopItemShow.Log.LogInfo(string.Concat(new string[] { "玩家", __instance.no.ToString(),"操作:", controll.type.ToString(), "-", controll.parameter }));
+            // ShopItemShow.Log.LogInfo($"Controll.type {controll.type}");
             if (controll.type != ShopMaster.GetGoods)
             {   // 不是我们请求的数据
                 return true;
@@ -312,7 +312,6 @@ namespace ShopItemShow
         // 每个建筑对应一个时钟,时钟记录shop数据是否需要更新
         // 新回合开始或者有玩家进行购物都会导致shop数据更新
         private static Dictionary<string, int> clock;
-        public static bool Task = false;// 请求任务,有任务时,不在发送请求数据
         public static MapSprite TaskCard;// 记录发送请求是的 Card
 
         // 我们请求head 从200开始设置避免冲突
@@ -324,7 +323,6 @@ namespace ShopItemShow
         {   // new game reset all
             shop = new Dictionary<int, ServerBuilding>();
             clock = new Dictionary<string, int>();
-            Task = false;
         }
         public static Dictionary<int, ServerBuilding> GetShop()
         {
@@ -332,22 +330,20 @@ namespace ShopItemShow
             {   // 主机,使用gamedata.shop
                 return ServerMaster.GetInstance().gamedata.shop;
             }
-            if (Task)
-            {
-                // 有发送请求数据任务,直接返回,不再进行之后的逻辑判断,防止竞争
-                return shop;
-            }
-
             if (clock.ContainsKey(ShopItemShow.MapCard.name) && GetTime() == clock[ShopItemShow.MapCard.name])
             {
                 // 数据没有变化
                 return shop;
             }
-            ShopItemShow.Log.LogInfo("send get data message");
-            // 获取数据
-            Task = true;
+            if (!clock.ContainsKey(ShopItemShow.MapCard.name)){
+                // 设置商店时钟
+                clock.Add(ShopItemShow.MapCard.name,0);
+            }
+            // ShopItemShow.Log.LogInfo("send get data message");
+            // 发送请求数据
             TaskCard = ShopItemShow.MapCard;
-            ClientMaster.GetInstance().SendMessage(GetGoods, new string[] { ShopItemShow.MapCard.name });
+            clock[TaskCard.name] = GetTime();
+            ClientMaster.GetInstance().SendMessage(GetGoods, new string[] { TaskCard.name });
             return shop;
         }
 
@@ -372,13 +368,10 @@ namespace ShopItemShow
             {
                 // card 不存在
                 ShopItemShow.Log.LogError($"ShopMaster: not found card in {x},{y}");
-                Task = false;
                 return;
             }
 
             ServerBuilding building;
-            // shopId = str[0]
-            // population = str[1] // 四周格子的人口
             if (!shop.ContainsKey(card.no))
             {
                 // 新建ServerBuilding
@@ -389,12 +382,14 @@ namespace ShopItemShow
                 }
                 shop.Add(card.no, building);
             }
-            if (!clock.ContainsKey(ShopItemShow.MapCard.name))
+            if (!clock.ContainsKey(TaskCard.name))
             {
-                clock.Add(ShopItemShow.MapCard.name, 0);
+                clock.Add(TaskCard.name, 0);
             }
-            clock[ShopItemShow.MapCard.name] = GetTime();
+            clock[TaskCard.name] = GetTime();
             building = shop[card.no];
+            // shopId = str[0]
+            // population = str[1] // 四周格子的人口            
             // item.id = str[3]
             // count = str[4]
             // prestige = str[5]
@@ -411,7 +406,6 @@ namespace ShopItemShow
                 building.goods[index].population = int.Parse(str[i + 4]);
                 index++;
             }
-            Task = false;
         }
 
         public static void ResetClock(string name)
@@ -421,7 +415,7 @@ namespace ShopItemShow
             {
                 return;
             }
-            ShopItemShow.Log.LogInfo($"reset {name} clock");
+            // ShopItemShow.Log.LogInfo($"reset {name} clock");
             clock[name] = -1;
         }
 
