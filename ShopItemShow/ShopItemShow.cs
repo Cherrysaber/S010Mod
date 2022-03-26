@@ -43,12 +43,19 @@ namespace ShopItemShow
         // PatchSelectCard 中获取对应的 ClickCard 修改提示信息
         [HarmonyPatch(typeof(PromptController), nameof(PromptController.SelectCard))]
         [HarmonyPrefix]
-        public static bool PatchSelectCard(PromptController __instance, ref Card.Type type, ref string name)
+        public static bool PatchSelectCard(PromptController __instance, Card.Type type, ref string name)
         {
             // 不是 Card.Type.Shop 返回执行原函数
             if (type != Card.Type.Shop)
             {
                 return true;
+            }
+
+            // bugfix: 灵根灵脉灵气满时提示不全
+            // 内部存储灵气 > 4 时,name 变成 name_FULL 导致无法正常获取信息
+            // 将名字改回来
+            if (name == "ROOT_FULL" || name == "MANASPRING_FULL"){
+                name = name.Trim("_FULL".ToCharArray());
             }
 
             // copy from PromptController.SelectCard
@@ -101,21 +108,22 @@ namespace ShopItemShow
                 return true;
             }
 
-            if (ShopUtility.IsParty(shop[card.no].name))
+            var building = shop[card.no];
+            if (ShopUtility.IsParty(building.name))
             {
                 // 门派,显示前4项
                 for (int i = 0; i < 4; i++)
                 {
-                    var good = shop[card.no].goods[i];
-                    string text = $"{ItemDict.GetItemName(good.item)}  威望 {good.prestige}";
+                    var goods = building.goods[i];
+                    string text = $"{ItemDict.GetItemName(goods.item)}  威望 {goods.prestige}";
                     info.text += text;
                     info.text += "\n";
                 }
-                __instance.size = new Vector2(296f, 260f);
+                __instance.size = new Vector2(296f, 270f);
                 return false;
             }
 
-            var index = ShopUtility.GetIndex(shop[card.no].name);
+            var index = ShopUtility.GetIndex(building.name);
             if (index.Length == 0)
             {
                 // 没有商品 index ,返回执行原函数
@@ -127,8 +135,8 @@ namespace ShopItemShow
             foreach (int i in index)
             {
                 // 商品
-                var good = shop[card.no].goods[i];
-                if (good.count <= 0)
+                var goods = building.goods[i];
+                if (goods.count <= 0)
                 {
                     // 数量不足,不显示
                     continue;
@@ -136,26 +144,26 @@ namespace ShopItemShow
                 // n 用来记录是否换行
                 // 如果一个物品需要威望和灵气购买
                 int n = 0;
-                string text = $"{ItemDict.GetItemName(good.item)}  ";
-                if (good.prestige > 0)
+                string text = $"{ItemDict.GetItemName(goods.item)}  ";
+                if (goods.prestige > 0)
                 {
-                    text += "威望 " + good.prestige.ToString();
+                    text += "威望 " + goods.prestige.ToString();
                     n++;
                 }
-                if (good.mana > 0)
+                if (goods.mana > 0)
                 {
                     if (n == 1)
                     {
                         text += "\n";
                     }
-                    text += "灵气 " + good.mana.ToString();
+                    text += "灵气 " + goods.mana.ToString();
                     n++;
                 }
-                if (good.count > 0)
+                if (goods.count > 0)
                 {
                     if (n == 0)
                     {   // 灵根或者灵脉
-                        text += "数量 " + good.count.ToString();
+                        text += "数量 " + goods.count.ToString();
                     }
                 }
                 text += "\n";
@@ -163,7 +171,7 @@ namespace ShopItemShow
                 showNum++;
             }
 
-            float h = 200f;
+            float h = 210f;
             h += 15 * showNum;
             __instance.size = new Vector2(296f, h);
             return false;
@@ -185,6 +193,7 @@ namespace ShopItemShow
         // 注入ClientMaster.ActionManage
         // StartGame 开始游戏,重置ShopMaster
         // ChangeCreature 有人数据变动,可能购买了商品,重置商店时钟
+        // TableCardData card数据变动,重置商店时钟
         // Response  商店数据
         // ResetCard 重置时钟
         // ShopMaster.RecvGoods 为我们接收到的商店数据
@@ -200,26 +209,36 @@ namespace ShopItemShow
                     // new game
                     ShopItemShow.Log.LogInfo("ShopMaster Reset");
                     ShopMaster.Reset();
-                    return true;
+                    break;
                 case Action.Type.ChangeCreature:
                     // 重置TaskClock中所有记录的商店
-                    foreach (var name in ShopMaster.TaskClock){
+                    foreach (var name in ShopMaster.TaskClock)
+                    {
                         ShopMaster.ResetClock(name);
                     }
                     ShopMaster.TaskClock.Clear();
-                    return true;
+                    break;
+                case Action.Type.TableCardData:
+                    // card数据改变,更新对应商店时钟
+                    string[] cardMsg = action.parameter.Split(new char[] { ',' });
+                    // ShopItemShow.Log.LogInfo(action.parameter);
+                    // [ card.no, shop.name, card.x, card.y, ... ]
+                    for (int i = 0; i < cardMsg.Length / 6; i++)
+                    {
+                        string pos = cardMsg[6 * i + 2] + "_" + cardMsg[6 * i + 3];
+                        ShopMaster.ResetClock(pos);
+                    }
+                    break;
                 case ShopMaster.Response:
-                    string[] array = action.parameter.Split(new char[] { ',' });
-                    ShopMaster.SetShop(array);
+                    string[] shopMsg = action.parameter.Split(new char[] { ',' });
+                    ShopMaster.SetShop(shopMsg);
                     return false;
                 case ShopMaster.ResetCard:
                     // 需要重置的Card加入队列
                     ShopMaster.TaskClock.Add(action.parameter);
                     return false;
-                default:
-                    return true;
             }
-            // return true;
+            return true;
         }
 
 
@@ -234,17 +253,19 @@ namespace ShopItemShow
             {
                 case ShopMaster.Request:
                     // 发送商店货物
-                    ShopMaster.SendGoods(__instance,controll);
+                    ShopMaster.SendGoods(__instance, controll);
                     return false;
                 case Controll.Type.SelectGoods:
-                    if (__instance.joinShop == null){
+                    if (__instance.joinShop == null)
+                    {
                         break;
                     }
                     string text = __instance.joinShop.card.posx.ToString() + "_" + __instance.joinShop.card.posy.ToString();
-                    foreach (var player in ServerMaster.GetInstance().gamedata.players){
-                        player.SendMessage(ShopMaster.ResetCard,new string[] { text });
+                    foreach (var player in ServerMaster.GetInstance().gamedata.players)
+                    {
+                        player.SendMessage(ShopMaster.ResetCard, new string[] { text });
                     }
-                    return true;       
+                    break;
             }
             return true;
         }
