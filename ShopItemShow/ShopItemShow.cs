@@ -629,16 +629,16 @@ namespace ShopItemShow
                     case "S0014":
                         itemData.name = "定身咒";
                         break;
-                    case "L0101":
+                    case "L0100":
                         itemData.name = "岳王刀";
                         break;
-                    case "L0102":
+                    case "L0101":
                         itemData.name = "关帝刀";
                         break;
-                    case "L0103":
+                    case "L0102":
                         itemData.name = "令公刀";
                         break;
-                    case "L0104":
+                    case "L0103":
                         itemData.name = "霸王刀";
                         break;
                 }
