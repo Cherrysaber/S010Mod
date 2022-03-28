@@ -4,7 +4,7 @@
     <TargetFramework>net46</TargetFramework>
     <AssemblyName>ShopItemShow</AssemblyName>
     <Description>商店物品展示</Description>
-    <Version>0.3.7</Version>
+    <Version>0.3.8</Version>
     <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
     <LangVersion>latest</LangVersion>
   </PropertyGroup>

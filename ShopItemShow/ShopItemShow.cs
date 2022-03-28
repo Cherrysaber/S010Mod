@@ -54,7 +54,8 @@ namespace ShopItemShow
             // bugfix: 灵根灵脉灵气满时提示不全
             // 内部存储灵气 > 4 时,name 变成 name_FULL 导致无法正常获取信息
             // 将名字改回来
-            if (name == "ROOT_FULL" || name == "MANASPRING_FULL"){
+            if (name == "ROOT_FULL" || name == "MANASPRING_FULL")
+            {
                 name = name.Trim("_FULL".ToCharArray());
             }
 
@@ -613,34 +614,16 @@ namespace ShopItemShow
             Items = ItemManager.GetInstance().items;
             dict = new Dictionary<string, ItemData>();
 
-            // 修复游戏数据错误
-            // S0012 为 爆炎拳
-            // S0014 为 定身咒
-            // 游戏原始items.name 都为 蚀心掌
-            // 游戏里刀字不知道用什么字体,或者就不是这个刀
-            // 全部改成刀,方便制作查找功能
+            // 修复Items数据错误
+            // Items部分技能数据错误
+            // 使用 SkillManager.GetInstance().FindSkillInData 获取最新数据
+            // 替换 itemData.name
             foreach (var itemData in Items)
             {
-                switch (itemData.id)
+                if (itemData.type == "Skill")
                 {
-                    case "S0012":
-                        itemData.name = "爆炎拳";
-                        break;
-                    case "S0014":
-                        itemData.name = "定身咒";
-                        break;
-                    case "L0100":
-                        itemData.name = "岳王刀";
-                        break;
-                    case "L0101":
-                        itemData.name = "关帝刀";
-                        break;
-                    case "L0102":
-                        itemData.name = "令公刀";
-                        break;
-                    case "L0103":
-                        itemData.name = "霸王刀";
-                        break;
+                    var skill = SkillManager.GetInstance().FindSkillInData(itemData.parameters);
+                    itemData.name = Localization.Get("name_skill_" + skill.id);
                 }
                 // 将 ItemData[] 转化为 Dictionary
                 dict.Add(itemData.id, itemData);
