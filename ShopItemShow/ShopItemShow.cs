@@ -58,6 +58,14 @@ namespace ShopItemShow
             {
                 name = name.Trim("_FULL".ToCharArray());
             }
+            else if (name.Contains("MOUNTAIN"))
+            {
+                name = "MOUNTAIN";
+            }
+            else if (name.Contains("CAVE"))
+            {
+                name = "CAVE";
+            }
 
             // copy from PromptController.SelectCard
             if (__instance.life <= 0)
@@ -270,8 +278,6 @@ namespace ShopItemShow
             }
             return true;
         }
-
-
 
 
         // bugfix: 修复多人游戏洞府仙山可以无限升级和自动升级的bug
