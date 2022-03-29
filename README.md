@@ -24,3 +24,15 @@ dotnet new bepinex5plugin -n NewPlugin -T net46 -U 2018.4.23
 ### v0.3.5 
 - bugfix: 多人游戏非主机玩家无法正常显示 #1
 - 需要主机也安装mod,非主机才能正常显示,如果主机没有安装mod,则显示原始提示
+
+### v0.3.9
+- 仙山洞府补丁移动到FuturePlugin
+- ItemDict 数据更新
+
+
+## FuturePlugin (未来补丁)
+游戏bug修复补丁
+
+### v0.1.0
+1. 修复仙山洞府可以无限升级和自动升级的bug
+2. 修复多人游戏在开始投票界面后,有人还在其他战斗中,投票结束后游戏卡住的bug
