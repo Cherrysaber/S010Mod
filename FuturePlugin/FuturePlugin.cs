@@ -122,16 +122,35 @@ namespace FuturePlugin
         [HarmonyPrefix]
         public static void PatchActionManage(ClientMaster __instance, Action action)
         {
-            if (action.type != Action.Type.StartGame)
+            switch (action.type)
             {
-                return;
-            }
-            FuturePlugin.Log.LogInfo("VotePlugin Reset");
-            Vote = false;
-            PlayerDone = new bool[] { true, true, true, true };
-            for (int i = 0; i < ServerMaster.GetInstance().gamedata.players.Count; i++)
-            {
-                PlayerDone[i] = false;
+                case Action.Type.StartGame:
+                    if (__instance.me.no != 0)
+                    {
+                        return; // 非主机
+                    }
+                    FuturePlugin.Log.LogInfo("VotePlugin Reset");
+                    Vote = false;
+                    PlayerDone = new bool[] { true, true, true, true };
+                    for (int i = 0; i < ServerMaster.GetInstance().gamedata.players.Count; i++)
+                    {
+                        PlayerDone[i] = false;
+                    }
+                    break;
+                case Action.Type.InitBattle:
+                    if (__instance.me.no != 0)
+                    {
+                        return; // 非主机
+                    }
+                    PlayerDone[0] = false;
+                    break;
+                case Action.Type.EndTurn:
+                    if (__instance.me.no != 0)
+                    {
+                        return; // 非主机
+                    }
+                    PlayerDone[0] = true;
+                    break;
             }
         }
 
