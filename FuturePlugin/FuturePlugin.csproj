@@ -4,7 +4,7 @@
     <TargetFramework>net46</TargetFramework>
     <AssemblyName>FuturePlugin</AssemblyName>
     <Description>山河伏妖录补丁</Description>
-    <Version>0.1.1</Version>
+    <Version>0.1.3</Version>
     <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
     <LangVersion>latest</LangVersion>
   </PropertyGroup>

@@ -130,17 +130,9 @@ namespace FuturePlugin
                     PlayerDone = new bool[] { true, true, true, true };
                     break;
                 case Action.Type.InitBattle:
-                    if (__instance.me.no != 0)
-                    {
-                        return; // 非主机
-                    }
                     PlayerDone[0] = false;
                     break;
-                case Action.Type.EndTurn:
-                    if (__instance.me.no != 0)
-                    {
-                        return; // 非主机
-                    }
+                case Action.Type.EndBattle:
                     PlayerDone[0] = true;
                     break;
             }
@@ -159,7 +151,7 @@ namespace FuturePlugin
                     PlayerDone[player.no] = true;
                 }
             }
-            FuturePlugin.Log.LogInfo("PatchRecvControll");
+
             for (int i = 0; i < PlayerDone.Length; i++)
             {
                 if (!PlayerDone[i])
@@ -197,15 +189,12 @@ namespace FuturePlugin
             return true;
         }
 
+        // 结束战斗
         [HarmonyPatch(typeof(ServerBattle), nameof(ServerBattle.EndBattle))]
         [HarmonyPrefix]
         public static void PatchEndBattle(ServerBattle __instance)
         {
-            if (!__instance.isBoss)
-            {
-                return;
-            }
-            FuturePlugin.Log.LogInfo("PatchEndBattle");
+            // FuturePlugin.Log.LogInfo("PatchEndBattle");
             foreach (var player in __instance.players)
             {
                 PlayerDone[player.no] = true;
@@ -216,12 +205,12 @@ namespace FuturePlugin
             }
         }
 
-        // 进行攻击证明还在战斗状态, PlayerDone -> false
-        [HarmonyPatch(typeof(ServerPlayer), nameof(ServerPlayer.Attack))]
+        // 开始战斗, PlayerDone -> false
+        [HarmonyPatch(typeof(ServerPlayer), nameof(ServerPlayer.StartBattle))]
         [HarmonyPostfix]
-        public static void PatchAttack(ServerPlayer __instance)
+        public static void PatchStartBattle(ServerPlayer __instance)
         {
-            FuturePlugin.Log.LogInfo($"player {__instance.no} attack ");
+            // FuturePlugin.Log.LogInfo($"player {__instance.no} StartBattle");
             PlayerDone[__instance.no] = false;
         }
     }
