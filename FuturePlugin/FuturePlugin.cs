@@ -125,17 +125,9 @@ namespace FuturePlugin
             switch (action.type)
             {
                 case Action.Type.StartGame:
-                    if (__instance.me.no != 0)
-                    {
-                        return; // 非主机
-                    }
                     FuturePlugin.Log.LogInfo("VotePlugin Reset");
                     Vote = false;
                     PlayerDone = new bool[] { true, true, true, true };
-                    for (int i = 0; i < ServerMaster.GetInstance().gamedata.players.Count; i++)
-                    {
-                        PlayerDone[i] = false;
-                    }
                     break;
                 case Action.Type.InitBattle:
                     if (__instance.me.no != 0)
