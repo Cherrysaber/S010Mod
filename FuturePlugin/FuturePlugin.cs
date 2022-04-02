@@ -97,7 +97,7 @@ namespace FuturePlugin
     public class VotePlugin
     {
         // 在所有人都战斗结束后才开始投票
-        public const string Version = "0.1.0";
+        public const string Version = "0.1.3";
         private static Harmony harmony;
 
         public static bool[] PlayerDone;
