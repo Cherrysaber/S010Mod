@@ -17,13 +17,15 @@ jobs:
       with:
         dotnet-version: 5.0.x
     - name: Build FuturePlugin
-      run: dotnet build FuturePlugin -c Release
-    - name: Build ShopItemShow
-      run: dotnet build ShopItemShow -c Release
-    - name: Save SHA
       run: |
-        echo ${{ github.sha }} > Release.txt
-        cat Release.txt
+        dotnet build FuturePlugin -c Release
+        echo ${{ github.sha }} >> Release.txt
+    - name: Build ShopItemShow
+      run: |
+        dotnet build ShopItemShow -c Release
+        echo ${{ github.sha }} >> Release.txt
+    - name: Show SHA
+      run: cat Release.txt
     - name: Get Bep
       run: wget https://github.com/BepInEx/BepInEx/releases/download/v5.4.19/BepInEx_x64_5.4.19.0.zip
     - name: Release
