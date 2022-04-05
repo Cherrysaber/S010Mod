@@ -2,8 +2,8 @@ name: .NET
 
 on:
   push:
-    branches: [ stable ]
-
+    tags:
+      - "20*"
 
 jobs:
   build:
@@ -24,7 +24,7 @@ jobs:
       run: |
         echo ${{ github.sha }} > Release.txt
         cat Release.txt
-    - name: Get Bep
+    - name: Get BepInEx
       run: wget https://github.com/BepInEx/BepInEx/releases/download/v5.4.19/BepInEx_x64_5.4.19.0.zip
     - name: Release
       uses: softprops/action-gh-release@v1
