@@ -1,0 +1,37 @@
+name: .NET
+
+on:
+  push:
+    branches: [ stable ]
+
+
+jobs:
+  build:
+
+    runs-on: ubuntu-latest
+
+    steps:
+    - uses: actions/checkout@v3
+    - name: Setup .NET
+      uses: actions/setup-dotnet@v2
+      with:
+        dotnet-version: 5.0.x
+    - name: Build FuturePlugin
+      run: dotnet build FuturePlugin -c Release
+    - name: Build ShopItemShow
+      run: dotnet build ShopItemShow -c Release
+    - name: Save SHA
+      run: |
+        echo ${{ github.sha }} > Release.txt
+        cat Release.txt
+    - name: Get Bep
+      run: wget https://github.com/BepInEx/BepInEx/releases/download/v5.4.19/BepInEx_x64_5.4.19.0.zip
+    - name: Release
+      uses: softprops/action-gh-release@v1
+      if: startsWith(github.ref, 'refs/tags/')
+      with:
+        files: |
+          FuturePlugin/bin/Release/net46/FuturePlugin.dll
+          ShopItemShow/bin/Release/net46/ShopItemShow.dll
+          BepInEx_x64_5.4.19.0.zip
+      
