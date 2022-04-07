@@ -1,17 +1,28 @@
 using HarmonyLib;
-
+using BepInEx;
 // 仙山洞府补丁
 
-namespace FuturePlugin{
-    public class MountainCavePlugin
+namespace FuturePlugin
+{
+    [BepInPlugin("Cherrysaber.FuturePlugin.MountainCavePlugin", "FuturePlugin.MountainCavePlugin", Version)]
+    [BepInDependency("Cherrysaber.FuturePlugin")]
+    public class MountainCavePlugin : BaseUnityPlugin
     {
 
         // 玩家升级仙山或者洞府后,设置 this.upgrade
         // 但是在升完级后却没有重置 this.upgrade
         // 导致地图上建造建筑物或者升级时
         // 游戏都会遍历全部建筑调用 Upgrade
-        public const string Version = "0.1.0";
+        public const string Version = "0.2.0";
         private static Harmony harmony;
+
+        private void Awake()
+        {
+            var config = FuturePlugin.PluginConfig.Bind(PluginInfo.PLUGIN_NAME, "仙山洞府补丁是否启用", true);
+            if (config.Value){
+                Enable();
+            }
+        }
 
         public static void Enable()
         {
@@ -19,7 +30,7 @@ namespace FuturePlugin{
             harmony = Harmony.CreateAndPatchAll(typeof(MountainCavePlugin));
         }
 
-        public static void Disable()
+        public void Disable()
         {
             harmony.UnpatchSelf();
         }

@@ -1,14 +1,23 @@
 using HarmonyLib;
-
+using BepInEx;
 // 投票补丁
 
-namespace FuturePlugin{
-    public class VotePlugin
+namespace FuturePlugin
+{
+    [BepInPlugin("Cherrysaber.FuturePlugin.VotePlugin", "FuturePlugin.VotePlugin", Version)]
+    [BepInDependency("Cherrysaber.FuturePlugin")]
+    public class VotePlugin : BaseUnityPlugin
     {
         // 在所有人都战斗结束后才开始投票
-        public const string Version = "0.1.3";
+        public const string Version = "0.2.0";
         private static Harmony harmony;
-
+        private void Awake()
+        {
+            var config = FuturePlugin.PluginConfig.Bind(PluginInfo.PLUGIN_NAME, "投票补丁是否启用", true);
+            if (config.Value){
+                Enable();
+            }
+        }
         public static bool[] PlayerDone;
         public static bool Vote;
 

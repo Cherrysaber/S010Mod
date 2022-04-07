@@ -17,24 +17,13 @@ namespace FuturePlugin
     public class FuturePlugin : BaseUnityPlugin
     {
         public static ManualLogSource Log;
-        private static ConfigEntry<bool> mountainCave;
-        private static ConfigEntry<bool> vote;
+        public static ConfigFile PluginConfig;
         private void Awake()
         {
             // Plugin startup logic
             Logger.LogInfo($"Plugin {PluginInfo.PLUGIN_GUID} is loaded!");
             Log = Logger;
-
-            mountainCave = Config.Bind(PluginInfo.PLUGIN_NAME, "仙山洞府补丁是否启用", true);
-            if (mountainCave.Value)
-            {
-                MountainCavePlugin.Enable();
-            }
-            vote = Config.Bind(PluginInfo.PLUGIN_NAME, "投票补丁是否启用", true);
-            if (vote.Value)
-            {
-                VotePlugin.Enable();
-            }
+            PluginConfig = Config;
         }
     }
 }
