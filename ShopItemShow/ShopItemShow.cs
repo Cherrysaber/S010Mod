@@ -124,11 +124,14 @@ namespace ShopItemShow
                 for (int i = 0; i < 4; i++)
                 {
                     var goods = building.goods[i];
+                    if (goods.item.type != "Skill"){
+                        continue;
+                    }
                     string text = $"{ItemDict.GetItemName(goods.item)}  威望 {goods.prestige}";
                     info.text += text;
                     info.text += "\n";
                 }
-                __instance.size = new Vector2(296f, 270f);
+                __instance.size = new Vector2(296f, 275f);
                 return false;
             }
 
@@ -180,7 +183,7 @@ namespace ShopItemShow
                 showNum++;
             }
 
-            float h = 210f;
+            float h = 215f;
             h += 15 * showNum;
             __instance.size = new Vector2(296f, h);
             return false;
@@ -470,7 +473,7 @@ namespace ShopItemShow
         // GetName  提供建筑名称
         private static ShopUtility instance;// instance
 
-        private static Dictionary<string, string> nameDict;
+        private static Dictionary<string, string> partyDict;
         private static Dictionary<string, int[]> indexDict;
         private static int[] emptyIndex;
         private static int[] partyIndex;
@@ -487,17 +490,13 @@ namespace ShopItemShow
         private static void init()
         {
             // 初始化
-            nameDict = new Dictionary<string, string>
-            {
-                {"ACADEMY","学院"},{"TEMPLE","道观"},
-                {"HOUSE","村屋"},{"MARKET","集市"},{"HOSPITAL","医馆"},{"FORGE","铁匠铺"},
-                {"ROOT","灵根"},{"MANASPRING","灵脉"},{"MOUNTAIN","仙山"},{"CAVE","洞府"},
-                {"GUARD","岗哨"},{"GUILD","盟会"},
-                {"BAR","茶摊"},{"INN","客栈"},
-                {"EMPTY","空地"} , {"RUIN","废墟"} , {"BLACK","黑市"} ,
-                {"CHEST","宝库"} , {"CASIN","赌场"} , {"DIVINATION","挂摊"} ,
-                {"School","???"},{"SHRINE","???"},
-            };
+
+            // 门派字典
+            // Localization.Get 获取最新数据
+            partyDict = new Dictionary<string, string>();
+            foreach (var party in ShopManager.GetInstance().shop){
+                partyDict.Add(party.id,Localization.Get("name_shop_" + party.id));
+            }
 
             emptyIndex = new int[] { };// empty int[]
             partyIndex = new int[] { 0, 1, 2, 3 };// party index
@@ -506,11 +505,13 @@ namespace ShopItemShow
             var hospitalIndex = new int[] { 1, 2, 3 };
             var manaIndex = new int[] { 1, 2 };
             var caveIndex = new int[] { 4, 5, 6 };
+            var blackMarketIndex = new int[] {0,1,2,3,4,5,6};
             indexDict = new Dictionary<string, int[]>{
                 {"HOUSE",houseIndex},{"MARKET",marketIndex},{"HOSPITAL",hospitalIndex},
                 {"ROOT",manaIndex},{"MANASPRING",manaIndex},
                 {"MOUNTAIN",caveIndex},{"CAVE",caveIndex},
                 {"BAR",houseIndex},{"INN",houseIndex},
+                {"BLACK",blackMarketIndex}
             };
 
             // create instance
@@ -519,20 +520,19 @@ namespace ShopItemShow
 
         public static bool IsParty(string name)
         {
-            // nameDict 没有记录的为门派
-            return !nameDict.ContainsKey(name);
+            // partyDict 中记录的为门派
+            return partyDict.ContainsKey(name);
         }
 
         public static string GetName(string name)
         {
             // 返回建筑对应的名称
-            // nameDict 中没找到则返回 self
-            if (nameDict.ContainsKey(name))
+            // partyDict 中没找到则返回 Localization.Get 获取的名字
+            if (partyDict.ContainsKey(name))
             {
-                return nameDict[name];
+                return partyDict[name];
             }
-            ShopItemShow.Log.LogError($"{name} not found in ShopUtility.nameDict");
-            return name;
+            return Localization.Get("name_shop_" + name);
         }
 
         public static int[] GetIndex(string name)
