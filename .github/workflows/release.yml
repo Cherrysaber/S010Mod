@@ -20,6 +20,8 @@ jobs:
       run: dotnet build FuturePlugin -c Release
     - name: Build ShopItemShow
       run: dotnet build ShopItemShow -c Release
+    - name: Build BlackMarket
+      run: dotnet build BlackMarket -c Release
     - name: Show SHA
       run: |
         echo ${{ github.sha }} > Release.txt
@@ -33,5 +35,6 @@ jobs:
         files: |
           FuturePlugin/bin/Release/net46/FuturePlugin.dll
           ShopItemShow/bin/Release/net46/ShopItemShow.dll
+          BlackMarket/bin/Release/net46/BlackMarket.dll
           BepInEx_x64_5.4.19.0.zip
       
