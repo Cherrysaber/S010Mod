@@ -98,11 +98,11 @@ namespace FuturePlugin
                 if (!PlayerDone[i])
                 {
                     // 有人在战斗或者其他状态
-                    FuturePlugin.Log.LogInfo($"players {i} unready to vote");
+                    FuturePlugin.Log.LogInfo($"player {i} is unready to vote");
                     return false;
                 }
             }
-            FuturePlugin.Log.LogInfo("all players ready to vote");
+            FuturePlugin.Log.LogInfo("all players are ready to vote");
             Vote = false;
             return true;
         }
