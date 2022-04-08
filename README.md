@@ -43,5 +43,5 @@ dotnet new bepinex5plugin -n NewPlugin -T net46 -U 2018.4.23
 ## BlackMarket (黑市Plus)
 
 ### v0.2.0
-- 黑市Plus版大量消费威望的地点
 - 支持悬赏物品，公屏打字黑市寻找XX，悬赏物品购买刷新后出现，价格为30威望
+- 支持模糊查找，多个结果随机选择一个
