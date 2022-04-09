@@ -45,3 +45,7 @@ dotnet new bepinex5plugin -n NewPlugin -T net46 -U 2018.4.23
 ### v0.2.0
 - 支持悬赏物品，公屏打字黑市寻找XX，悬赏物品购买刷新后出现，价格为30威望
 - 支持模糊查找，多个结果随机选择一个
+
+### v0.2.1
+- 使用RNGCryptoServiceProvider生成随机数
+- 更新黑市刷新物品池为游戏全物品池 (20%高级,30%中级,50%低级)
