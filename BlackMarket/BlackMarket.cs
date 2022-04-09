@@ -4,6 +4,7 @@ using UnityEngine;
 using BepInEx;
 using BepInEx.Logging;
 using HarmonyLib;
+using System.Security.Cryptography;
 
 // 黑市,消费威望的地点
 
@@ -16,6 +17,7 @@ namespace BlackMarket
         public static Goods EmptyGoods;
         public static Goods RefreshGoods;
         public static List<String> TextList; // 保存寻找技能的字符串
+        public static RNGCryptoServiceProvider Random;
         private void Awake()
         {
             // Plugin startup logic
@@ -25,7 +27,7 @@ namespace BlackMarket
             EmptyGoods = new Goods("NONE", 0, 0, 0);
             RefreshGoods = new Goods("cave_refresh", -1, 5, 0);
             TextList = new List<String>();
-
+            Random = new RNGCryptoServiceProvider();
             // copy from ShopItemShow
             // 修复Items数据错误
             // Items部分技能数据错误
@@ -104,6 +106,46 @@ namespace BlackMarket
                 return;
             }
             TextList.Add(controll.parameter.TrimStart("黑市寻找".ToCharArray()));
+        }
+
+        public static int RandomNext(int minValue, int maxValue)
+        {
+            if (minValue > maxValue) throw new ArgumentOutOfRangeException(nameof(minValue));
+            if (minValue == maxValue) return minValue;
+            var data = new byte[4];
+            Random.GetBytes(data);
+            int generatedValue = Math.Abs(BitConverter.ToInt32(data, startIndex: 0));
+            int diff = maxValue - minValue;
+            int mod = generatedValue % diff;
+            return minValue + mod;
+
+        }
+
+        // 生成随机物品,物品池为全技能
+        // 20 高级,30 中级,50 低级
+        public static List<ItemData> GetRandomItem(int n)
+        {
+            List<ItemData> result = new List<ItemData>();
+            var itemList = ServerMaster.GetInstance().gamedata.randomItem;
+            for (int i = 0; i < n; i++)
+            {
+                int level = RandomNext(0, 100);
+                if (level > 80)
+                {
+                    level = 2;
+                }
+                else if (level > 50)
+                {
+                    level = 1;
+                }
+                else
+                {
+                    level = 0;
+                }
+                int index = RandomNext(0, itemList[level].Count);
+                result.Add(itemList[level][index]);
+            }
+            return result;
         }
 
     }
@@ -187,7 +229,7 @@ namespace BlackMarket
 
         private void refresh()
         {
-            List<ItemData> randomItem = ServerMaster.GetInstance().GetRandomItem(7);
+            List<ItemData> randomItem = BlackMarket.GetRandomItem(7);
             for (int i = 0; i < randomItem.Count; i++)
             {
                 Goods goods = new Goods(randomItem[i].id, 1, 5 * (randomItem[i].rarity + 1), 0);
@@ -215,7 +257,7 @@ namespace BlackMarket
                 {
                     continue;
                 }
-                var index = ServerMaster.GetInstance().gamedata.random.Next(0, find.Count);
+                var index = BlackMarket.RandomNext(0, find.Count);
                 this.goods[i].item = find[index];
                 this.goods[i].prestige = 30;
             }
