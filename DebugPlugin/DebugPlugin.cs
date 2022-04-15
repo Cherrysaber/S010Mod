@@ -59,32 +59,4 @@ namespace DebugPlugin
             Log.LogInfo($"玩家 {__instance.no} 操作: {controll.type}-{controll.parameter}");
         }
     }
-
-    // GC 补丁, 定时执行 GC.Collect
-    [BepInPlugin("Cherrysaber.DebugPlugin.GCPlugin", "DebugPlugin.GCPlugin", "1.0.0")]
-    [BepInDependency("Cherrysaber.DebugPlugin")]
-    public class GCPlugin : BaseUnityPlugin
-    {
-        public static ManualLogSource Log;
-        private void Awake()
-        {
-            // Plugin startup logic
-            Logger.LogInfo("Plugin DebugPlugin.GCPlugin is loaded!");
-            Log = Logger;
-
-            Harmony.CreateAndPatchAll(typeof(GCPlugin));
-        }
-
-        // Patch for ClientMaster.ActionManage
-        [HarmonyPatch(typeof(ClientMaster), "ActionManage")]
-        [HarmonyPrefix]
-        public static void PatchActionManage(Action action)
-        {
-            // 每天执行一次 GC.Collect
-            if (action.type == Action.Type.Time && ClockController.GetInstance().TimeConve() == 6){
-                Log.LogInfo("执行 GC.Collect");
-                GC.Collect();
-            }
-        }
-    }
 }
