@@ -15,8 +15,8 @@ dotnet new bepinex5plugin -n NewPlugin -T net46 -U 2018.4.23
 ## ShopItemShow (商店物品展示)
 
 ### v0.2.0
-![image](https://github.com/Cherrysaber/S010Mod/blob/main/image/house.png)
-![image](https://github.com/Cherrysaber/S010Mod/blob/main/image/root.png)
+![image](https://raw.githubusercontent.com/Cherrysaber/S010Mod/main/image/house.png)
+![image](https://raw.githubusercontent.com/Cherrysaber/S010Mod/main/image/root.png)
 
 ### v0.3.0
 - bugfix: 修复多人游戏仙山洞府可以无限升级和自动升级
